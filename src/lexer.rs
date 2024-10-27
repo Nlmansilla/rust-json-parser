@@ -5,7 +5,7 @@ use std::{iter::Peekable, str::Chars};
 
 pub struct Lexer<'a> {
     input: Peekable<Chars<'a>>,
-    line: i16,
+    line: u32,
 }
 
 impl<'a> Lexer<'a> {

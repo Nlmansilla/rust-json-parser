@@ -6,23 +6,23 @@ pub(crate) enum Errors {
     EmptyFile,
 
     #[error("[line {line:?}] Unexpected token {token:?}")]
-    UnexpectedToken { line: i16, token: char },
+    UnexpectedToken { line: u32, token: char },
 
     #[error("[line {line:?}] Missing closing quote.")]
-    MissingClosingQuote { line: i16 },
+    MissingClosingQuote { line: u32 },
 
     #[error("[line {line:?}] Missing closing quote.")]
-    UnterminatedString { line: i16 },
+    UnterminatedString { line: u32 },
 
     #[error("[line {line:?}] Bad syntax on number format.")]
-    BadFormattedNumber { line: i16 },
+    BadFormattedNumber { line: u32 },
 
     #[error("[line {line:?}] Bad syntaxm unexpected trailing comma.")]
-    TrailingComma { line: i16 },
+    TrailingComma { line: u32 },
 
     #[error("[line {line:?}] Invalid sintax. Missing {expected_token:?} at line {line:?}.")]
-    InvalidSyntax { expected_token: String, line: i16 },
+    InvalidSyntax { expected_token: String, line: u32 },
 
     #[error("[line {line:?}] Bad formatted Array, Expected ].")]
-    BadFormattedArray { line: i16 },
+    BadFormattedArray { line: u32 },
 }

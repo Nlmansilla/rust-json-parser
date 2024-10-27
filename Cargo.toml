@@ -1,12 +1,13 @@
 [package]
-name = "json-parser-v2"
+name = "json-parser"
 version = "0.1.0"
 edition = "2021"
+description = "A JSON parser written in Rust. Part of the coding challenges shared by John Crickett"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-anyhow = { version = "1.0", default-features = true }
+anyhow = { version = "1.0", features = ["backtrace"] }
 peekable = "0.2"
 thiserror = "1.0"
 regex = "1.11.1"
