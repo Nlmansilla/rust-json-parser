@@ -9,7 +9,7 @@ pub enum Tokens {
     Comma,
     Null,
     True,
-    False
+    False,
 }
 
 impl Tokens {

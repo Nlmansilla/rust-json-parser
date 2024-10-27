@@ -1,6 +1,6 @@
-
-use crate::tokens::Tokens;
 use crate::errors::Errors;
+use crate::tokens::Tokens;
+use regex::Regex;
 use std::{iter::Peekable, str::Chars};
 
 pub struct Lexer<'a> {
@@ -8,7 +8,7 @@ pub struct Lexer<'a> {
     line: i16,
 }
 
-impl<'a> Lexer<'a>  {
+impl<'a> Lexer<'a> {
     pub fn new(input: Chars<'a>) -> Self {
         Lexer {
             input: input.peekable(),
@@ -17,9 +17,6 @@ impl<'a> Lexer<'a>  {
     }
 
     pub fn parse(&mut self) -> Result<Vec<Tokens>, Errors> {
-        println!("{:?}",self.input);
-
-        
         let mut tokens = Vec::<Tokens>::new();
 
         // File is empty.
@@ -28,34 +25,35 @@ impl<'a> Lexer<'a>  {
         }
 
         while let Some(character) = self.read() {
-            println!("tokens {:?}" , tokens);
             match character {
                 '{' => tokens.push(Tokens::OpenCurlyBrace),
                 '}' => {
-                    if tokens[tokens.len()-1] == Tokens::Comma {
-                        Err(
-                            Errors::InvalidSyntax { 
-                                expected_token: "x".to_string(), line: self.line 
-                            })?
+                    if tokens[tokens.len() - 1] == Tokens::Comma {
+                        Err(Errors::InvalidSyntax {
+                            expected_token: "x".to_string(),
+                            line: self.line,
+                        })?
                     }
                     tokens.push(Tokens::ClosedCurlyBrace)
-                },
+                }
                 '"' => tokens.append(&mut self.parse_key_value()?),
                 ',' => tokens.push(Tokens::Comma),
-                c => Err(
-                    Errors::UnexpectedToken { line: self.line, token: c }
-                )?
+                c => Err(Errors::UnexpectedToken {
+                    line: self.line,
+                    token: c,
+                })?,
             }
         }
 
         if tokens[0] != Tokens::OpenCurlyBrace {
-            Err(Errors::InvalidSyntax { expected_token: "}".to_string(), line: self.line })?
+            Err(Errors::InvalidSyntax {
+                expected_token: "}".to_string(),
+                line: self.line,
+            })?
         }
-    
-        if tokens[tokens.len() -1] == Tokens::Comma {
-            Err(
-                Errors::TrailingComma { line: self.line }
-            )?
+
+        if tokens[tokens.len() - 1] == Tokens::Comma {
+            Err(Errors::TrailingComma { line: self.line })?
         }
 
         Ok(tokens)
@@ -88,51 +86,35 @@ impl<'a> Lexer<'a>  {
     fn is_newline(char: char) -> bool {
         char == '\n' || char == '\r'
     }
-    
+
     fn is_whitespace(char: char) -> bool {
         char == ' '
     }
 
     fn is_number(char: char) -> bool {
-        ['0','1','2','3','4','5','6','7','8','9'].contains(&char)
+        ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'].contains(&char)
     }
 
-    fn parse_key_value(&mut self) -> Result<Vec<Tokens>, Errors> { 
+    fn parse_key_value(&mut self) -> Result<Vec<Tokens>, Errors> {
         let mut tokens = Vec::<Tokens>::new();
         //Expecting "key"
         let key = self.parse_key()?;
         tokens.push(key.clone());
 
-        //if object was nested, need to check if it was closed
-        if key == Tokens::ClosedCurlyBrace {
-            return Ok(tokens);
-        }
-
         //expecting colon ":""
-        if self.read().is_some_and(
-            |character| character.to_string() == Tokens::Colon.literal()
-        ) { 
+        if self
+            .read()
+            .is_some_and(|character| character.to_string() == Tokens::Colon.literal())
+        {
             tokens.push(Tokens::Colon);
         } else {
-            Err(Errors::InvalidSyntax { 
-                expected_token: Tokens::Colon.literal(), 
-                line: self.line 
+            Err(Errors::InvalidSyntax {
+                expected_token: Tokens::Colon.literal(),
+                line: self.line,
             })?
         }
 
         if let Some(character) = self.read() {
-            println!("charatcet: {:?}", character);
-            println!("nested 118 nada");
-            // if nested {
-            //     println!("pasa a evaluar anidamiento");
-            //     match character {
-            //         '}' => {
-            //             tokens.push(Tokens::ClosedCurlyBrace);
-            //         },
-            //         _ => ()
-            //     }
-            // }
-
             match character {
                 //parse_key evaluates proper form of format "key"
                 //which is the expected on keys and strings parts of a value.
@@ -140,12 +122,10 @@ impl<'a> Lexer<'a>  {
                 't' => tokens.push(self.read_true()?),
                 'f' => tokens.push(self.read_false()?),
                 'n' => tokens.push(self.read_null()?),
-                // '{' => {
-                //     println!("matchea acá");
-                //     tokens.push(Tokens::OpenCurlyBrace);
-                //     println!("tokens {:?}" , tokens);
-                //     tokens.append(&mut self.parse_key_value()?)
-                // },
+                '{' => {
+                    tokens.push(Tokens::OpenCurlyBrace);
+                    tokens.append(&mut self.parse_object()?)
+                }
                 '[' => tokens.push(self.read_array()?),
                 c => {
                     if Self::is_number(c) {
@@ -156,15 +136,41 @@ impl<'a> Lexer<'a>  {
                             expected_token: String::from(c),
                         })?;
                     }
-                },
+                }
             }
         }
 
         Ok(tokens)
     }
 
+    fn parse_object(&mut self) -> Result<Vec<Tokens>, Errors> {
+        let mut tokens = Vec::<Tokens>::new();
+        while let Some(character) = self.read() {
+            match character {
+                '{' => {
+                    tokens.append(&mut self.parse_object()?);
+                }
+                '}' => {
+                    tokens.push(Tokens::ClosedCurlyBrace);
+                    break;
+                }
+                '"' => tokens.append(&mut self.parse_key_value()?),
+                ',' => tokens.push(Tokens::Comma),
+                c => {
+                    return Err(Errors::UnexpectedToken {
+                        line: self.line,
+                        token: c,
+                    })
+                }
+            }
+        }
+
+        Ok(tokens.to_vec())
+    }
+
     fn read_array(&mut self) -> Result<Tokens, Errors> {
         let mut ended = true;
+        let mut buffer = String::new();
 
         for ch in self.input.by_ref() {
             match ch {
@@ -172,7 +178,7 @@ impl<'a> Lexer<'a>  {
                     ended = true;
                     break;
                 }
-                _ => todo!(),
+                _ => buffer.push(ch),
             }
         }
 
@@ -180,24 +186,27 @@ impl<'a> Lexer<'a>  {
             Err(Errors::BadFormattedArray { line: self.line })?
         }
 
-        Ok(Tokens::Array)
+        //Validate array structure with regex
+        let re = Regex::new(r#"^(("[^"]*"[,\s]*)+)?$|^$|^"[^"]+"$"#).unwrap();
+
+        if re.is_match(&buffer) {
+            Ok(Tokens::Array)
+        } else {
+            Err(Errors::BadFormattedArray { line: self.line })
+        }
     }
 
     fn parse_key(&mut self) -> Result<Tokens, Errors> {
         let mut buffered_string = String::new();
         let mut key_ended = false;
-        println!("parse key");
-
 
         for char in self.input.by_ref() {
             match char {
                 '"' => {
                     key_ended = true;
                     break;
-                },
-                ':' => {
-                    Err(Errors::MissingClosingQuote { line: self.line })?
-                },
+                }
+                ':' => Err(Errors::MissingClosingQuote { line: self.line })?,
                 ch => buffered_string.push(ch),
             }
         }
@@ -205,7 +214,6 @@ impl<'a> Lexer<'a>  {
         if !key_ended {
             Err(Errors::UnterminatedString { line: self.line })?
         }
-            println!("{:?}",buffered_string);
         Ok(Tokens::Literal(buffered_string))
     }
 
@@ -228,13 +236,18 @@ impl<'a> Lexer<'a>  {
 
         Ok(Tokens::Number(buffer.parse::<usize>().unwrap()))
     }
-    
-    fn read_specified_key(&mut self, mut buffer: String, stop_at: char, expected_token: Tokens) -> Result<Tokens, Errors> {
+
+    fn read_specified_key(
+        &mut self,
+        mut buffer: String,
+        stop_at: char,
+        expected_token: Tokens,
+    ) -> Result<Tokens, Errors> {
         let mut ended = false;
 
         for char in self.input.by_ref() {
             if char == stop_at {
-                ended=true;
+                ended = true;
                 break;
             } else {
                 buffer.push(char)
@@ -242,11 +255,17 @@ impl<'a> Lexer<'a>  {
         }
 
         if !ended {
-            Err(Errors::InvalidSyntax { expected_token: expected_token.literal(), line: self.line })?
+            Err(Errors::InvalidSyntax {
+                expected_token: expected_token.literal(),
+                line: self.line,
+            })?
         }
 
         if buffer != expected_token.literal() {
-            Err(Errors::InvalidSyntax { expected_token: String::from("a crear error"), line: self.line })?
+            Err(Errors::InvalidSyntax {
+                expected_token: String::from("a crear error"),
+                line: self.line,
+            })?
         }
 
         Ok(expected_token)
@@ -263,5 +282,4 @@ impl<'a> Lexer<'a>  {
     fn read_false(&mut self) -> Result<Tokens, Errors> {
         self.read_specified_key(String::from("f"), ',', Tokens::False)
     }
-
 }

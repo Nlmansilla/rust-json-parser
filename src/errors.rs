@@ -1,7 +1,7 @@
 use thiserror::Error;
 
 #[derive(Error, Debug)]
-pub (crate) enum Errors {
+pub(crate) enum Errors {
     #[error("Empty JSON file is invalid.")]
     EmptyFile,
 
@@ -21,7 +21,7 @@ pub (crate) enum Errors {
     TrailingComma { line: i16 },
 
     #[error("[line {line:?}] Invalid sintax. Missing {expected_token:?} at line {line:?}.")]
-    InvalidSyntax {expected_token: String, line: i16},
+    InvalidSyntax { expected_token: String, line: i16 },
 
     #[error("[line {line:?}] Bad formatted Array, Expected ].")]
     BadFormattedArray { line: i16 },
